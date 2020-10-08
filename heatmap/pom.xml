@@ -25,7 +25,13 @@
       <version>4.11</version>
       <scope>test</scope>
     </dependency>
+    <dependency>
+	    <groupId>com.mapbox.mapboxsdk</groupId>
+	    <artifactId>mapbox-sdk-geojson</artifactId>
+	    <version>5.5.0</version>
+	</dependency>
   </dependencies>
+  
 
   <build>
     <pluginManagement><!-- lock down plugins versions to avoid using Maven defaults (may be moved to parent pom) -->
