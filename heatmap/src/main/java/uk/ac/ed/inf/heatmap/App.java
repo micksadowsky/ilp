@@ -1,24 +1,27 @@
 package uk.ac.ed.inf.heatmap;
-
-import com.mapbox.geojson.Geometry;
-import com.mapbox.geojson.Point;
-
-
+/**
+ * Entry point for the application
+ * 
+ * @author Michal Sadowski
+ *
+ */
 public class App 
 {
-	
-	//	CONSTANTS	
-
-
-	
-	//TODO open file
-	
-//	TODO create 
-	
-	
+	/**
+	 * 
+	 * @param args takes filename where predictions are stored
+	 */
     public static void main( String[] args )
     {
-    	String name = "Michael";
-        System.out.println( "Hello " + name + "!" );
+    	if (args.length != 1) {
+    		System.err.println("No arguments given. Usage:");
+    		System.err.println("java -jar heatmap.jar [filename]");
+    	} else {
+    		var filename = args[0];
+    		var heatmap = new Heatmap(filename);
+    		heatmap.createHeatmap("heatmap.geojson");
+    		System.out.println("Successfully generated a heatmap!");
+    	}
+    	
     }
 }

@@ -1,8 +1,11 @@
 package uk.ac.ed.inf.heatmap;
-
+/**
+ * This class deals with converting int predictions to colour and their codes
+ * 
+ * @author Michal Sadowski
+ */
 public class ColorSymbol {
 
-// Colours available
 	enum Color {
 		GREEN,
 		MEDIUMGREEN,
@@ -15,7 +18,10 @@ public class ColorSymbol {
 		BLACK,
 		GREY;
 
-//		Returns Marker Symbol
+		/**
+		 * 
+		 * @return marker symbol based on coursework specification
+		 */
 		String getMarkerSymbol() {
 			switch(this) {
 				case GREEN:
@@ -37,7 +43,9 @@ public class ColorSymbol {
 			}
 		}
 		
-//		Returns RGB string of the colour
+		/**
+		 * @return  RGB string of the colour
+		 */
 		String getColor() {
 			switch(this) {
 				case GREEN:
@@ -66,8 +74,13 @@ public class ColorSymbol {
 		}
 	}
 	
-	//	Takes the reading  and returns an appropriate enum 
-	static Color mapReading(int reading) {
+	/**
+	 * Converts a reading integer to an enum based on coursework specification
+	 * 
+	 * @param reading prediction or reading value
+	 * @return one of available colour enums
+	 */
+	private static Color mapReading(int reading) {
 		if (reading < 0 || reading >= 256) {
 			throw new IllegalArgumentException("Reading must be between 0 and 255 but was: " + reading);
 		} else {
@@ -94,25 +107,21 @@ public class ColorSymbol {
 		
 	}
 	
-//	Takes the reading and returns RGB colour string
-	static String readingToRgbColor(int reading) {
+	/**
+	 * Takes the reading and returns RGB colour string
+	 * @param reading integer value 0 &lt x &lt 256
+	 * @return rgb-string appropriate for a reading
+	 */
+	public static String readingToRgbColor(int reading) {
 		return mapReading(reading).getColor();
 	}
 
-	//	Takes the reading and returns an appropriate marker symbol string
-	static String readingToMarkerSymbol(int reading) {
+	/**
+	 * Takes the reading and returns a marker symbol
+	 * @param reading integer value 0 &lt x &lt 256
+	 * @return marker symbol appropriate for a reading
+	 */	public static String readingToMarkerSymbol(int reading) {
 		return mapReading(reading).getMarkerSymbol();
-	}
-	
-	public static void main(String[] args) {
-		System.out.println("2: " + readingToRgbColor(2));
-		System.out.println("2: " + readingToMarkerSymbol(2));
-		System.out.println("43: " + readingToRgbColor(43));
-		System.out.println("43: " + readingToMarkerSymbol(43));
-		System.out.println("129: " + readingToRgbColor(129));
-		System.out.println("129: " + readingToMarkerSymbol(129));
-		System.out.println("255: " + readingToRgbColor(255));
-		System.out.println("255: " + readingToMarkerSymbol(255));
 	}
 	
 }
