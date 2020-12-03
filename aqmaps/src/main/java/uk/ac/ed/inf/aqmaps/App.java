@@ -23,7 +23,7 @@ public class App
     {
     	if (args.length != 7) {
     		System.err.println("Wrong number of arguments given. Usage:");
-    		System.err.println("java -jar heatmap.jar [DD] [MM] [YYYY] [star longitude] [start latitude] [seed] [port]");
+    		System.err.println("java -jar heatmap.jar [DD] [MM] [YYYY] [start longitude] [start latitude] [seed] [port]");
     		
     		
     	} else {
@@ -34,8 +34,8 @@ public class App
     		String[] date = {DD, MM, YYYY};
     		
     		// starting position
-    		var start_lon = Double.parseDouble(args[3]);
-    		var start_lat = Double.parseDouble(args[4]);
+    		var start_lat = Double.parseDouble(args[3]);
+    		var start_lon = Double.parseDouble(args[4]);
     		var start_loc = Point.fromLngLat(start_lon, start_lat); 
     		
     		// additional values
@@ -47,10 +47,24 @@ public class App
     		
     		var helper = new Helpers(port);
     		var sensors = helper.getSensorsLocations(date);
+
     		var no_fly_zones = helper.getNoFlyZones();
     		
     		var path = new Path(sensors, start_loc, no_fly_zones);
-    		path.calculatePath(seed);
+    		var ordered_path = path.generatePath(seed);
+    		
+//    		var drone = new Drone();
+//    		drone.fly(route);
+//    		var readings = drone.getReadings();
+//    		
+    		var map = new AQMap(ordered_path);
+    		map.export("test_map.geojson");
+    		
+    		
+    		
+    		
+    		
+    		
     		
     		
     		

@@ -28,7 +28,7 @@ public class Helpers {
 	}
 			
 
-	public static FeatureCollection getNoFlyZones() {
+	public FeatureCollection getNoFlyZones() {
 		
 		// Download the file
 		var url_params = "/buildings/no-fly-zones.geojson";
