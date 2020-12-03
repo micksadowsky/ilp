@@ -16,6 +16,8 @@ public class Path {
 	ArrayList<Point> sensors;
 	Point init_loc;
 	FeatureCollection no_fly_zones;
+	final static Double move_length = 0.0003;
+	final static Double proximity = 0.0002;
 	
 	public Path(ArrayList<Point> sensors, Point init_loc, FeatureCollection no_fly_zones) {
 		this.sensors = sensors;
@@ -29,6 +31,57 @@ public class Path {
 		System.out.println("Generating path");
 		var order = chooseOrder(sensors, init_loc);
 		return order;
+	}
+	
+	/**
+	 * @param pt1
+	 * @param pt2
+	 */
+	public static void twoPointsPath(Point pt1, Point pt2) {
+		var curr_point = Point.fromLngLat(pt1.longitude(), pt1.latitude());
+		var move_angle = closestAngle(pt1, pt2);
+		var move_counter = 0;
+		while (distance(pt2, curr_point) >= 0.0002) {
+			curr_point = move(curr_point, move_angle);
+			move_angle = closestAngle(curr_point, pt2);
+			move_counter++;
+		}
+		
+		System.out.println("move_counter = " + move_counter);
+		System.out.println("pt1 = " + pt1);
+		System.out.println("curr_point = " + curr_point);
+		System.out.println("pt2 = " + pt2);
+		System.out.printf("distance(pt2, curr_point) = %f", distance(pt2, curr_point));
+		System.out.println();
+		
+		
+		var in_range = distance(pt2, curr_point)< 0.0002;
+		System.out.println("in_range = " + in_range);
+	}
+	
+	public static Double closestAngle(Point pt1, Point pt2) {
+		var dist = distance(pt1, pt2);
+		var lat1 = pt1.latitude();
+		var lat2 = pt2.latitude();
+
+		var rad_angle = Math.asin((lat2 - lat1)/dist);
+		var deg_angle = Math.toDegrees(rad_angle);
+		var approx_angle = (double) (10*(Math.round(deg_angle/10)) % 360);
+//		System.out.println("rad_angle = " + rad_angle);
+//		System.out.println("deg_angle = " + deg_angle);
+//		System.out.println("approx_angle = " + approx_angle);
+		return approx_angle;
+	}
+	
+	
+	public static Point move(Point start_point, Double angle) {
+		var rad_angle = Math.toRadians(angle);
+		var new_lon = start_point.longitude() + move_length*Math.cos(rad_angle);
+		var new_lat = start_point.latitude() + move_length*Math.sin(rad_angle);
+		
+		var end_point = Point.fromLngLat(new_lon, new_lat);
+		
+		return end_point;
 	}
 	
 	
@@ -83,7 +136,7 @@ public class Path {
 		
 	}
 	
-	public Double distance(Point pt1, Point pt2) {
+	public static Double distance(Point pt1, Point pt2) {
 		var lon1 = pt1.longitude();
 		var lat1 = pt1.latitude();
 		var lon2 = pt2.longitude();
@@ -98,7 +151,10 @@ public class Path {
 		return distance;
 	}
 	
-	public void main() {
+	public static void main(String[] args) {
+		var pt1 = Point.fromLngLat(-3.18697, 55.942688);
+		var pt2 = Point.fromLngLat(-3.186537, 55.949925);
+		twoPointsPath(pt1 ,pt2);
 		
 	}
 	

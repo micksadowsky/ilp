@@ -14,9 +14,11 @@ import com.mapbox.geojson.LineString;
 public class AQMap {
 	
 	public ArrayList<Point> sensors;
+	public Point init_point;
 	
-	public AQMap(ArrayList<Point> sensors) {
+	public AQMap(ArrayList<Point> sensors, Point init_point) {
 		this.sensors = new ArrayList<Point>(sensors);
+		this.init_point = init_point;
 	}
 	
 	public void export(String outfile) {
@@ -53,7 +55,9 @@ public class AQMap {
 	}
 	
 	public LineString createLineString(ArrayList<Point> points) {
-		var linestring = LineString.fromLngLats(points);
+		var linestring_points = new ArrayList<Point>(points);
+		linestring_points.add(0, init_point);
+		var linestring = LineString.fromLngLats(linestring_points);
 		return linestring;
 	}
 	

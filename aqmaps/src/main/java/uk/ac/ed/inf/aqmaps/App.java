@@ -57,7 +57,7 @@ public class App
 //    		drone.fly(route);
 //    		var readings = drone.getReadings();
 //    		
-    		var map = new AQMap(ordered_path);
+    		var map = new AQMap(ordered_path, start_loc);
     		map.export("test_map.geojson");
     		
     		
