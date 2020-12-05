@@ -5,67 +5,63 @@ import com.mapbox.geojson.Point;
 import java.util.ArrayList;
 
 
-/**
- * Entry point for the Air Quality Map application
- * 
- * @author Michal Sadowski
- *
- */
 public class App 
 {
 	public int port = 80;
-	/**
-	 * 
-	 * @param args takes the following arguments:
-	 * DD MM YYYY longitude latitude seed port 
-	 */
+	
+    /**
+     * @param args
+     */
+    /**
+     * @param args
+     */
     public static void main( String[] args )
     {
     	if (args.length != 7) {
     		System.err.println("Wrong number of arguments given. Usage:");
     		System.err.println("java -jar heatmap.jar [DD] [MM] [YYYY] [start longitude] [start latitude] [seed] [port]");
-    		
-    		
     	} else {
-    		// date    		
+    		// Parse arguments
     		var DD = args[0];
     		var MM = args[1];
     		var YYYY = args[2];
     		String[] date = {DD, MM, YYYY};
     		
-    		// starting position
     		var start_lat = Double.parseDouble(args[3]);
     		var start_lon = Double.parseDouble(args[4]);
     		var start_loc = Point.fromLngLat(start_lon, start_lat); 
     		
-    		// additional values
     		var seed = Integer.parseInt(args[5]);
     		var port = Integer.parseInt(args[6]);
     		 		
+    		System.out.println("Successfully parsed arguments");
     		
-    		System.out.println("Successfully read arguments");
-    		
-    		var helper = new Helpers(port);
-    		var sensors = helper.getSensorsLocations(date);
-
+    		// Get path parameters
+    		var helper = new Helpers(port, date);
+    		var sensors_hash = helper.getSensorsLocations();
+    		var sensors_point_locs = new ArrayList<Point>(sensors_hash.values());
     		var no_fly_zones = helper.getNoFlyZones();
     		
-    		var path = new Path(sensors, start_loc, no_fly_zones);
-    		var ordered_path = path.generatePath(seed);
+    		// Construct a path
+    		var path = new Path(sensors_point_locs, start_loc, no_fly_zones);
+    		var ordered_directions = path.generatePath(seed);
     		
-//    		var drone = new Drone();
-//    		drone.fly(route);
-//    		var readings = drone.getReadings();
-//    		
-    		var map = new AQMap(ordered_path, start_loc);
-    		map.export("test_map.geojson");
+    		// Perform a flight
+    		var drone = new Drone(start_loc, sensors_hash, helper);
+    		drone.fly(ordered_directions);
+    		var readings = drone.getReadings();
+    		System.out.println(readings);
     		
+    		// Save flight log
+    		var log_filename = "flightpath-"+ DD + "-" + MM + "-" + YYYY + ".txt"; 
+    		drone.exportLog(log_filename);	
     		
+    		// Save map
+    		var map = new AQMap(readings, drone.getPathMap(), helper);
+    		var map_filename = "readings-"+ DD + "-" + MM + "-" + YYYY + ".geojson";
+    		map.export(map_filename);
     		
-    		
-    		
-    		
-    		
+    		System.out.println("Successfully finished execution.");
     		
     		
     	}

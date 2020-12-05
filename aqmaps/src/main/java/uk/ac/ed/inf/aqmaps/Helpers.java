@@ -8,7 +8,7 @@ import java.lang.reflect.Type;
 import com.google.gson.reflect.TypeToken;
 
 import java.util.ArrayList;
-
+import java.util.HashMap;
 import java.io.IOException;
 import java.net.URI;
 
@@ -22,44 +22,66 @@ public class Helpers {
 
 	private static final HttpClient client = HttpClient.newHttpClient();
 	private int port;
+	private HashMap<String, Point> sensors_w3w = new HashMap<String, Point>();
+	private String[] date;
 	
-	public Helpers(int port) {
+	public Helpers(int port, String[] date) {
 		this.port = port;
+		this.date = date;
 	}
-			
-
+	
+	public Reading getReading(String from_sensor) {
+		// Download data from the server
+		var url_params = "/maps/" + date[2] + "/" + date[1] + "/" + date[0] + "/air-quality-data.json";
+		var jsonString = makeARequest(url_params); 
+		Type listReadingType = new TypeToken<ArrayList<Reading>>() {}.getType();
+		ArrayList<Reading> sensorReadingList = new Gson().fromJson(jsonString, listReadingType);
+		System.out.println("from_sensor = " + from_sensor);
+		for (var data : sensorReadingList) {
+			System.out.println("data.location = " + data.location);
+			if (from_sensor.equals(data.location)) {
+				return data;
+			}
+		}
+		return null;
+	}
+	
 	public FeatureCollection getNoFlyZones() {
 		
 		// Download the file
 		var url_params = "/buildings/no-fly-zones.geojson";
 		var jsonString = makeARequest(url_params);
 		// Convert to a feature collection and return
-		return FeatureCollection.fromJson(jsonString) ;
+		return FeatureCollection.fromJson(jsonString);
 	}
 	
-	public ArrayList<Point> getSensorsLocations(String[] date) {
-		
-		var sensors_locations = new ArrayList<Point>();		
-		
+	public Point pointFromW3W (String w3w) {
+		return sensors_w3w.get(w3w);
+	}
+	
+	
+	public HashMap<String, Point> getSensorsLocations() {
 		// Download data from the server
 		var url_params = "/maps/" + date[2] + "/" + date[1] + "/" + date[0] + "/air-quality-data.json";
 		var jsonString = makeARequest(url_params); 
 		Type listSensorLocationType = new TypeToken<ArrayList<SensorLocation>>() {}.getType();
-		ArrayList<SensorLocation> sensorLocationList = new Gson().fromJson(jsonString, listSensorLocationType);
+		ArrayList<SensorLocation> sensorW3WLocationList = new Gson().fromJson(jsonString, listSensorLocationType);
 		
-		for (var sensorLocation : sensorLocationList) {
-			sensors_locations.add(
-					w3wtoPoint(sensorLocation.location)
-					);
+		// Populate the hash map
+		for (var sensorW3WLocation : sensorW3WLocationList) {
+			
+			var w3wloc = sensorW3WLocation.location;
+			var degloc = w3wtoPoint(w3wloc);
+			sensors_w3w.put(w3wloc, degloc);
 		}
 
-		return sensors_locations;
+		return sensors_w3w;
 	}
+	
 
 	public Point w3wtoPoint(String w3w) {
 		
 		var words = w3w.split("\\.");
-		
 		var url_params = "/words/" + words[0] + "/" + words[1] + "/" + words[2] + "/details.json";
 		var jsonString = makeARequest(url_params); 
 
@@ -67,6 +89,7 @@ public class Helpers {
 		
 		return Point.fromLngLat(point_long_lat.coordinates.lng, point_long_lat.coordinates.lat);
 	}
+	
 	
 	public String makeARequest(String url_params) {
 		
