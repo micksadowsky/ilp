@@ -37,27 +37,27 @@ public class App
     		System.out.println("Successfully parsed arguments");
     		
     		// Get path parameters
-    		var helper = new Helpers(port, date);
-    		var sensors_hash = helper.getSensorsLocations();
-    		var sensors_point_locs = new ArrayList<Point>(sensors_hash.values());
-    		var no_fly_zones = helper.getNoFlyZones();
+    		var srv = new Server(port, date);
+    		var sensors = srv.getSensorsLocations();
+    		var sensors_loc_hash = srv.getHashMap();
+    		var no_fly_zones = srv.getNoFlyZones();
     		
     		// Construct a path
-    		var path = new Path(sensors_point_locs, start_loc, no_fly_zones);
-    		var ordered_directions = path.generatePath(seed);
+    		var path = new Path(sensors, start_loc, no_fly_zones);
+    		var flightpath = path.generatePath();
     		
     		// Perform a flight
-    		var drone = new Drone(start_loc, sensors_hash, helper);
-    		drone.fly(ordered_directions);
+    		var drone = new Drone(start_loc, sensors_loc_hash, srv);
+    		drone.fly(flightpath);
     		var readings = drone.getReadings();
-    		System.out.println(readings);
+    		System.out.println("readings.size() = " + readings.size());
     		
     		// Save flight log
     		var log_filename = "flightpath-"+ DD + "-" + MM + "-" + YYYY + ".txt"; 
     		drone.exportLog(log_filename);	
     		
     		// Save map
-    		var map = new AQMap(readings, drone.getPathMap(), helper);
+    		var map = new AQMap(readings, drone.getPathMap(), sensors_loc_hash);
     		var map_filename = "readings-"+ DD + "-" + MM + "-" + YYYY + ".geojson";
     		map.export(map_filename);
     		

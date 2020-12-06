@@ -13,33 +13,38 @@ public class Drone {
 	private Point init_loc;
 	private ArrayList<LogEntry> log = new ArrayList<LogEntry>();
 	private HashMap<String, Point> sensors_hash;
-	private Helpers helper;
+	private Server srv;
 	private ArrayList<Reading> readings = new ArrayList<Reading>(); 
 
 
-	public Drone(Point init_loc, HashMap<String, Point> sensors_hash, Helpers helper) {
+	public Drone(Point init_loc, HashMap<String, Point> sensors_hash, Server srv) {
 		this.init_loc = init_loc;
 		this.sensors_hash = sensors_hash;
-		this.helper = helper;
+		this.srv = srv;
 	}
 
 	public ArrayList<Reading> getReadings(){
 		return readings;
 	}
 	
-	public void fly(ArrayList<Integer> path) {
+	public void fly(ArrayList<PathStep> path) {
 		var curr_loc = init_loc;
 		for (var i = 0; i < path.size(); i++) {
 			// move
-			var angle = path.get(i);
-			var moved_loc = Path.move(curr_loc, angle);
+			var path_step = path.get(i);
+			var moved_loc = Path.move(curr_loc, path_step.angle);
+			
 			// take a reading (or not)
-			var nearby_sensor = sensorInRange(moved_loc);
-			if (nearby_sensor != null) {
-				System.out.println("nearby_sensor not null: " + nearby_sensor);
-				readings.add(read(nearby_sensor));
+			var sensor_to_read = path_step.sensor_to_read;
+//			System.out.println("sensor_to_read = " + sensor_to_read);
+			if (sensor_to_read != null && sensor_to_read != "null" && sensor_to_read != "") {
+				System.out.println("Attempting to read from sensor " + sensor_to_read);
+				if (inRangeOf(moved_loc, sensors_hash.get(sensor_to_read))){
+					readings.add(read(sensor_to_read));
+					System.out.println("Sensor in range");
+				}
 			}
-			var curr_log = new LogEntry(i+1, curr_loc, moved_loc, angle, nearby_sensor);
+			var curr_log = new LogEntry(i+1, curr_loc, moved_loc, path_step.angle, sensor_to_read);
 //			System.out.println("curr_log = " + curr_log);
 			log.add(curr_log);
 			curr_loc = moved_loc;
@@ -47,17 +52,16 @@ public class Drone {
 	}
 
 	public Reading read(String sensor_w3w) {
-		var reading = helper.getReading(sensor_w3w);
+		var reading = srv.getReading(sensor_w3w);
 		return reading;
 	}
 	
-	public String sensorInRange(Point loc) {
-        for (HashMap.Entry<String,Point> sen : sensors_hash.entrySet()) {	
-            if (Path.distance(loc, sen.getValue()) < Path.sensor_range) {
-            	return sen.getKey();
-            } 
+	public boolean inRangeOf(Point loc, Point sensor) {	
+            if (Path.distance(loc, sensor) < Path.sensor_range) {
+            	return true;
+            } else {
+            	return false;
         }
-		return null;
 	}
 	
 	public void exportLog(String outfile) {

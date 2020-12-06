@@ -3,6 +3,7 @@ package uk.ac.ed.inf.aqmaps;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 
 import com.mapbox.geojson.Feature;
 import com.mapbox.geojson.FeatureCollection;
@@ -16,13 +17,13 @@ public class AQMap {
 	public ArrayList<Reading> readings;
 //	public Point init_point;
 	public ArrayList<Point> path_map;
-	private Helpers helper;
+	private HashMap<String, Point> sensor_locs;
 	
-	public AQMap(ArrayList<Reading> readings, ArrayList<Point> path_map, Helpers helper) {
+	public AQMap(ArrayList<Reading> readings, ArrayList<Point> path_map, HashMap<String, Point> sensor_locs) {
 		this.readings = new ArrayList<Reading>(readings);
 //		this.init_point = init_point;
 		this.path_map = path_map;
-		this.helper = helper;
+		this.sensor_locs = sensor_locs;
 	}
 	
 	public void export(String outfile) {
@@ -40,6 +41,7 @@ public class AQMap {
 			FileWriter myWriter = new FileWriter(outfile);
 			myWriter.write(map.toJson());
 			myWriter.close();
+			System.out.println("Successfully saved " + outfile);
 		} catch (IOException e) {
 			System.out.println("An error occurred:");
 			e.printStackTrace();
@@ -47,8 +49,7 @@ public class AQMap {
 	}
 
 	public Feature createPointFeature(Reading reading, String index) {
-		System.out.println(reading);
-		var location = helper.pointFromW3W(reading.location);
+		var location = sensor_locs.get(reading.location);
 		var point_feature = Feature.fromGeometry(location);
 		point_feature.addStringProperty("index", index);
 		var battery_level = reading.battery;

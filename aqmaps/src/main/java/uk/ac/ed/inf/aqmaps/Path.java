@@ -13,86 +13,99 @@ import com.mapbox.geojson.Polygon;
 
 public class Path {
 
-	ArrayList<Point> sensors_point_locs;
+	ArrayList<SensorLocation> sensors;
 	Point init_loc;
 	FeatureCollection no_fly_zones;
 	final static Double move_length = 0.0003;
 	final static Double sensor_range = 0.0002;
 	final static Double return_range = 0.0003;
 	
-	public Path(ArrayList<Point> sensors_point_locs, Point init_loc, FeatureCollection no_fly_zones) {
-		this.sensors_point_locs = sensors_point_locs;
+	public Path(ArrayList<SensorLocation> sensors, Point init_loc, FeatureCollection no_fly_zones) {
+		this.sensors = sensors;
 		this.init_loc = init_loc;
 		this.no_fly_zones = no_fly_zones;
 	}
 	
-	
-	public ArrayList<Integer> generatePath(int seed) {
+	public ArrayList<PathStep> generatePath() {
 		System.out.println("Generating path");
 		var order = chooseOrder();
 		System.out.println("Order chosen");
 		System.out.println("Finding path");
-		var full_path = findPath(order);
+		var full_path = sensorsPath(order);
 		System.out.println("Path found");
-		System.out.println("full_path = " + full_path);
+//		System.out.println("full_path = " + full_path);
 		System.out.println("full_path.size() = " + full_path.size());
 		return full_path;
 	}
 	
-	
-	public ArrayList<Integer> findPath(ArrayList<Point> ordered_points) {
-		var full_path = new ArrayList<Integer>();
-		var curr_loc = init_loc;		
-		ArrayList<Integer> curr_path;
+	public ArrayList<PathStep> sensorsPath(ArrayList<SensorLocation> ordered_sensors) {
+		var full_path = new ArrayList<PathStep>();
+		var init_as_sensor = new SensorLocation("", init_loc);
+		var curr_loc = init_as_sensor;		
+//		ArrayList<PathStep> curr_path;
 		
-		var c = 0;
 		// Find paths for sensors
-		for (var loc : ordered_points) {
-			System.out.println(" Finding path between curr_loc and sensor" + c);
-			curr_path = twoPointsPath(curr_loc, loc, sensor_range);
+		for (var sen : ordered_sensors) {
+			var curr_path = twoPointsPath(curr_loc, sen, sensor_range);
 			full_path.addAll(curr_path);
-			curr_loc = moveAlongPath(curr_loc, curr_path);
-			c++;
+			curr_loc = new SensorLocation("", moveAlongPath(curr_loc.point, curr_path));
 		}
 		
 		// Find path to return home
-		curr_path = twoPointsPath(curr_loc, init_loc, return_range);
+		var curr_path = twoPointsPath(curr_loc, init_as_sensor, return_range);
 		full_path.addAll(curr_path);
 		
 		return full_path;
 	}
 	
-	public static ArrayList<Integer> twoPointsPath(Point pt1, Point pt2, Double proximity) {
-		var path = new ArrayList<Integer>();
+	public static ArrayList<PathStep> twoPointsPath(SensorLocation s1, SensorLocation s2, Double proximity) {
+		var path = new ArrayList<PathStep>();
 		
-		var curr_point = Point.fromLngLat(pt1.longitude(), pt1.latitude());
-		var move_angle = closestAngle(pt1, pt2);
-		var move_counter = 0;
-//		System.out.println("Entering twoPointsPath loop");
-		var c=0;
-		while (distance(pt2, curr_point) >= proximity) {
-//			System.out.println("move_angle = " + move_angle);
-//			System.out.println("twoPointsPath while loop counter = " + c);
-//			System.out.printf("distance(pt2, curr_point) = %f", distance(pt2, curr_point));
-//			System.out.println();
-			path.add(move_angle);
+		var curr_point = Point.fromLngLat(s1.point.longitude(), s1.point.latitude());
+		var dest_point = Point.fromLngLat(s2.point.longitude(), s2.point.latitude());;
+		int move_angle;
+		
+		
+		while (true) {
+			move_angle = closestAngle(curr_point, dest_point);
 			curr_point = move(curr_point, move_angle);
-			move_angle = closestAngle(curr_point, pt2);
-			move_counter++;
-			c++;
+			if (distance(dest_point, curr_point) < proximity) {
+				path.add(new PathStep(move_angle, s2.location));
+				break;
+			} else {
+				path.add(new PathStep(move_angle));
+			}
 		}
-		
-
-//		System.out.println("move_counter = " + move_counter);
-//		System.out.println("pt1 = " + pt1);
-//		System.out.println("curr_point = " + curr_point);
-//		System.out.println("pt2 = " + pt2);
-//		System.out.printf("distance(pt2, curr_point) = %f", distance(pt2, curr_point));
-//		System.out.println();
-		var in_range = distance(pt2, curr_point)< proximity;
-//		System.out.println("in_range = " + in_range);
-		
 		return path;
+		
+//		do {
+//			move_angle = closestAngle(curr_point, dest_point);
+//			curr_point = move(curr_point, move_angle);
+//			if (distance(dest_point, curr_point) >= proximity) {
+//				path.add(new PathStep(move_angle));
+//			}
+//		} while (distance(dest_point, curr_point) >= proximity);
+//		path.add(new PathStep(move_angle, s2.location));
+//		
+//		return path;
+	}
+	
+	public static Point moveAlongPath(Point pt, ArrayList<PathStep> path) {
+		var curr_point = pt;
+		for (var step : path) {
+			curr_point = move(curr_point, step.angle);
+		}		
+		return curr_point;
+	}
+	
+	public static Point move(Point start_point, Integer angle) {
+		var rad_angle = Math.toRadians(angle);
+		var new_lon = start_point.longitude() + move_length*Math.cos(rad_angle);
+		var new_lat = start_point.latitude() + move_length*Math.sin(rad_angle);
+		
+		var end_point = Point.fromLngLat(new_lon, new_lat);
+		
+		return end_point;
 	}
 	
 	public static Integer closestAngle(Point pt1, Point pt2) {
@@ -116,29 +129,12 @@ public class Path {
 		return approx_angle;
 	}
 	
-	public static Point moveAlongPath(Point start_point, ArrayList<Integer> path) {
-		var curr_point = start_point;
-		for (var angle : path) {
-			curr_point = move(curr_point, angle);
-		}		
-		return curr_point;
-	}
-	
-	public static Point move(Point start_point, Integer angle) {
-		var rad_angle = Math.toRadians(angle);
-		var new_lon = start_point.longitude() + move_length*Math.cos(rad_angle);
-		var new_lat = start_point.latitude() + move_length*Math.sin(rad_angle);
-		
-		var end_point = Point.fromLngLat(new_lon, new_lat);
-		
-		return end_point;
-	}
-	
-	public ArrayList<Point> chooseOrder() {
+	public ArrayList<SensorLocation> chooseOrder() {
 		var ipt = init_loc;
-		var points_given = new ArrayList<Point>(sensors_point_locs);
+		var points_given = new ArrayList<SensorLocation>(sensors);
+		var ordered_points = new ArrayList<SensorLocation>();
 		var no_points = points_given.size();
-		var ordered_points = new ArrayList<Point>();
+//		System.out.println("no_points = " + no_points);
 		
 		// Choose the first sensor to go to 
 		var first_point = chooseClosest(points_given, ipt);
@@ -149,10 +145,10 @@ public class Path {
 		var last_point = chooseClosest(points_given, ipt);
 		points_given.remove(last_point);
 		
-		// calculate points in between
+		// Calculate points in between
 		var current_point = first_point;		
 		for (var i=0; i<no_points-2; i++) {
-			var closest = chooseClosest(points_given, current_point);
+			var closest = chooseClosest(points_given, current_point.point);
 			ordered_points.add(closest);
 			points_given.remove(closest);
 			current_point = closest;
@@ -160,21 +156,24 @@ public class Path {
 		
 		ordered_points.add(last_point);
 
-//		System.out.println("Chosen order: ");
-//		for (var i = 0; i<ordered_points.size(); i++) {
-//			System.out.println(i+1 + " (" + ordered_points.get(i).longitude() + ", " + ordered_points.get(i).latitude() + ")");
-//		}
+		System.out.println("Chosen order: ");
+		for (var i = 0; i<ordered_points.size(); i++) {
+			System.out.println(i+1 + " ("+ ordered_points.get(i).location + ", " + ordered_points.get(i).point.longitude() + ", " + ordered_points.get(i).point.latitude() + ")");
+		}
 		
 		return ordered_points;
 	}
 	
-	public Point chooseClosest(ArrayList<Point> points, Point ipt) {
+	public SensorLocation chooseClosest(ArrayList<SensorLocation> points, Point ipt) {
+		// initiate list
 		var distances = new ArrayList<Double>();
 		
+		// measure distance between all points
 		for (var pt : points) {
-			distances.add(distance(ipt, pt));
+			distances.add(distance(ipt, pt.point));
 		}
-		
+
+		// choose the closest
 		var min_dist = Collections.min(distances);
 		var closest = points.get(distances.indexOf(min_dist));
 		
@@ -195,14 +194,13 @@ public class Path {
 //		System.out.println("Distance between (" + lon1 + ", " + lat1 + 
 //				") and (" + lon2 + ", " + lat2 + ") is " + distance);
 		
-		
 		return distance;
 	}
 	
 	public static void main(String[] args) {
 		var pt1 = Point.fromLngLat(-3.18697, 55.942688);
 		var pt2 = Point.fromLngLat(-3.186537, 55.942625);
-		twoPointsPath(pt1, pt2, sensor_range);
+//		twoPointsPath(pt1, pt2, sensor_range);
 		
 	}
 	
