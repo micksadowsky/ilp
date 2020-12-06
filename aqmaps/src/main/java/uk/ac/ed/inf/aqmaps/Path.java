@@ -8,19 +8,20 @@ import java.lang.Math;
 import com.mapbox.geojson.Feature;
 import com.mapbox.geojson.FeatureCollection;
 import com.mapbox.geojson.Point;
-import com.mapbox.geojson.Polygon;
 
+import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.Polygon;
 
 public class Path {
 
 	ArrayList<SensorLocation> sensors;
 	Point init_loc;
-	FeatureCollection no_fly_zones;
+	ArrayList<Polygon> no_fly_zones;
 	final static Double move_length = 0.0003;
 	final static Double sensor_range = 0.0002;
 	final static Double return_range = 0.0003;
 	
-	public Path(ArrayList<SensorLocation> sensors, Point init_loc, FeatureCollection no_fly_zones) {
+	public Path(ArrayList<SensorLocation> sensors, Point init_loc, ArrayList<Polygon> no_fly_zones) {
 		this.sensors = sensors;
 		this.init_loc = init_loc;
 		this.no_fly_zones = no_fly_zones;

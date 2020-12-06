@@ -11,7 +11,6 @@ import com.mapbox.geojson.Point;
 import com.mapbox.geojson.LineString;
 
 
-
 public class AQMap {
 	
 	public ArrayList<Reading> readings;

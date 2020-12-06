@@ -1,8 +1,14 @@
 package uk.ac.ed.inf.aqmaps;
 
 import com.mapbox.geojson.Point;
+import com.mapbox.geojson.Polygon;
+import com.mapbox.geojson.Feature;
+import com.mapbox.geojson.Point;
 import com.mapbox.geojson.FeatureCollection;
 import com.google.gson.Gson;
+
+import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.Coordinate;
 
 import java.lang.reflect.Type;
 import com.google.gson.reflect.TypeToken;
@@ -87,14 +93,6 @@ public class Server {
 		return hash_map;
 	}
 	
-	public FeatureCollection getNoFlyZones() {
-		
-		// Download the file
-		var url_params = "/buildings/no-fly-zones.geojson";
-		var jsonString = makeARequest(url_params);
-		// Convert to a feature collection and return
-		return FeatureCollection.fromJson(jsonString);
-	}
 	
 	public Point w3wtoPoint(String w3w) {
 		var words = w3w.split("\\.");
@@ -140,4 +138,60 @@ public class Server {
 			return response.body();			
 			}
 		}
+	
+	public ArrayList<org.locationtech.jts.geom.Polygon> getJTSNoFlyZones(){
+		// get Mapbox style no-fly-zones
+		var nfzs =  getNoFlyZones();
+		
+		//initialise JTS stuff
+		var gf = new GeometryFactory();
+		var csf = gf.getCoordinateSequenceFactory();
+		
+		// create a list of JTS Polygons
+		var jts_polygons_list = new ArrayList<org.locationtech.jts.geom.Polygon>();
+		
+		// iterate through no fly zones
+		for (var nfz : nfzs.features()) {
+			// get each Mapbox polygon
+			var pol = (Polygon) nfz.geometry();
+			var pol_coors = pol.coordinates();
+			
+			// convert Mapbox coordinates to JTS coordinates
+			var jts_coors_list = new ArrayList<Coordinate>();
+			// double for loop due to Mapbox convention
+			for (var pt_list : pol_coors) {
+				for (var pt : pt_list) {
+					var jts_coor = new Coordinate(pt.longitude(), pt.latitude());
+					jts_coors_list.add(jts_coor);
+				}
+			}
+			var jts_coordinate_sequence = csf.create(jts_coors_list.toArray(new Coordinate[0]));
+			
+			// create a JTS polygon and add to list
+			var jts_polygon = gf.createPolygon(jts_coordinate_sequence);
+			jts_polygons_list.add(jts_polygon);
+			System.out.println(jts_polygon);
+		}
+		return jts_polygons_list;
 	}
+	
+	public FeatureCollection getNoFlyZones() {
+		
+		// Download the file
+		var url_params = "/buildings/no-fly-zones.geojson";
+		var jsonString = makeARequest(url_params);
+		// Convert to a feature collection and return
+		return FeatureCollection.fromJson(jsonString);
+	}
+	
+	public static void main(String[] args) {
+		// initialise for testing
+		String[] d = {"01", "01", "2020"};
+		var srv = new Server(80, d); 
+		
+		
+	}
+}
+
+
+

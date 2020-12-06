@@ -40,10 +40,10 @@ public class App
     		var srv = new Server(port, date);
     		var sensors = srv.getSensorsLocations();
     		var sensors_loc_hash = srv.getHashMap();
-    		var no_fly_zones = srv.getNoFlyZones();
+    		var jts_no_fly_zones = srv.getJTSNoFlyZones();
     		
     		// Construct a path
-    		var path = new Path(sensors, start_loc, no_fly_zones);
+    		var path = new Path(sensors, start_loc, jts_no_fly_zones);
     		var flightpath = path.generatePath();
     		
     		// Perform a flight
