@@ -5,18 +5,17 @@ import java.util.Collections;
 
 import java.lang.Math; 
 
-import com.mapbox.geojson.Feature;
-import com.mapbox.geojson.FeatureCollection;
 import com.mapbox.geojson.Point;
 
-import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.GeometryFactory;
 
 public class Path {
 
 	ArrayList<SensorLocation> sensors;
 	Point init_loc;
-	ArrayList<Polygon> no_fly_zones;
+	static ArrayList<Polygon> no_fly_zones;
 	final static Double move_length = 0.0003;
 	final static Double sensor_range = 0.0002;
 	final static Double return_range = 0.0003;
@@ -47,6 +46,7 @@ public class Path {
 		
 		// Find paths for sensors
 		for (var sen : ordered_sensors) {
+			System.out.println("Finding path to sensor = " + sen.location);
 			var curr_path = twoPointsPath(curr_loc, sen, sensor_range);
 			full_path.addAll(curr_path);
 			curr_loc = new SensorLocation("", moveAlongPath(curr_loc.point, curr_path));
@@ -66,9 +66,17 @@ public class Path {
 		var dest_point = Point.fromLngLat(s2.point.longitude(), s2.point.latitude());;
 		int move_angle;
 		
-		
+		var c = 0;
 		while (true) {
 			move_angle = closestAngle(curr_point, dest_point);
+			System.out.println(c);
+			if (forbidden(curr_point, move_angle)) {
+				System.out.println("Move found to be forbidden, move_angle = " + move_angle);
+				var tried_angles = new ArrayList<Integer>();
+				tried_angles.add(move_angle);
+				move_angle = nextBestAngle(curr_point, dest_point, move_angle, tried_angles);
+			}
+			System.out.println("Moving move_angle = " + move_angle);
 			curr_point = move(curr_point, move_angle);
 			if (distance(dest_point, curr_point) < proximity) {
 				path.add(new PathStep(move_angle, s2.location));
@@ -76,19 +84,58 @@ public class Path {
 			} else {
 				path.add(new PathStep(move_angle));
 			}
+			c++;
 		}
 		return path;
+	}
+	
+	public static Integer nextBestAngle(Point curr_point, Point dest_point, Integer closest_angle, ArrayList<Integer> tried_angles) {
+		// consider two angles closest to the original
+		var smaller_angle = ((((closest_angle - 10) % 360) + 360) % 360);
+		var greater_angle = ((((closest_angle + 10) % 360) + 360) % 360);
 		
-//		do {
-//			move_angle = closestAngle(curr_point, dest_point);
-//			curr_point = move(curr_point, move_angle);
-//			if (distance(dest_point, curr_point) >= proximity) {
-//				path.add(new PathStep(move_angle));
-//			}
-//		} while (distance(dest_point, curr_point) >= proximity);
-//		path.add(new PathStep(move_angle, s2.location));
-//		
-//		return path;
+		System.out.println("tried_angles = " + tried_angles);
+		// continue expanding the angles until reaching the ones not yet tried
+		while (tried_angles.contains(smaller_angle)) {
+			smaller_angle = ((((smaller_angle - 10) % 360) + 360) % 360);
+//			System.out.println("smallerangleloop");
+		}
+		tried_angles.add(smaller_angle);
+		
+		while (tried_angles.contains(greater_angle)) {
+			greater_angle = ((((greater_angle + 10) % 360) + 360) % 360);
+//			System.out.println("greaterangleloop");
+		}
+		tried_angles.add(greater_angle);
+		
+		// check if the new angles result in a forbidden move
+		var considered_angles = new ArrayList<Integer>();
+		if (!forbidden(curr_point, smaller_angle)) {
+			considered_angles.add(smaller_angle);
+		}
+		if (!forbidden(curr_point, greater_angle)) {
+			considered_angles.add(greater_angle);
+		}
+		
+		// if both work, choose the one resulting closer location to the sensor
+		if (considered_angles.size() == 2) {
+			var smaller_angle_distance = distance(dest_point, move(curr_point, smaller_angle));
+			var greater_angle_distance = distance(dest_point, move(curr_point, greater_angle));
+			if (smaller_angle_distance < greater_angle_distance) {
+				System.out.println("Chose smaller_angle = " + smaller_angle);
+				return smaller_angle;
+			} else {
+				System.out.println("Chose greater_angle = " + greater_angle);
+				return greater_angle;
+			}
+		// if only one angle legal, go for it
+		} else if (considered_angles.size() == 1) {
+			System.out.println("Chose one avalaible angle = " + considered_angles.get(0));
+			return considered_angles.get(0);
+		// otherwise, try again
+		} else {
+			return nextBestAngle(curr_point, dest_point, closest_angle, tried_angles);
+		}
 	}
 	
 	public static Point moveAlongPath(Point pt, ArrayList<PathStep> path) {
@@ -129,6 +176,33 @@ public class Path {
 //		System.out.println("approx_angle = " + approx_angle);
 		return approx_angle;
 	}
+	
+	public static boolean forbidden(Point from, int angle) {
+		// set up points 
+		var start_jts_coor = new Coordinate(from.longitude(), from.latitude());
+		var end_pt = move(from, angle);
+		var end_jts_coor = new Coordinate(end_pt.longitude(), end_pt.latitude());
+		
+		// initialise JTS stuff
+		var gf = new GeometryFactory();
+		var csf = gf.getCoordinateSequenceFactory();
+		
+		// convert to data type required by JTS
+		Coordinate[] coordinate_sequence = {start_jts_coor, end_jts_coor};
+		var jts_coordinate_sequence = csf.create(coordinate_sequence);
+		
+		// construct a JTS LineString
+		var move_line = gf.createLineString(jts_coordinate_sequence);
+		
+		// check for any intersection
+		for (var nfz : no_fly_zones) {
+			if (move_line.intersects(nfz)) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
 	
 	public ArrayList<SensorLocation> chooseOrder() {
 		var ipt = init_loc;
