@@ -8,14 +8,10 @@ import java.util.ArrayList;
 public class App 
 {
 	public int port = 80;
-	
-    /**
-     * @param args
-     */
-    /**
-     * @param args
-     */
-    public static void main( String[] args )
+	public  ArrayList<String> test_stuff = new ArrayList<String>();
+
+
+    public  void main( String[] args )
     {
     	if (args.length != 7) {
     		System.err.println("Wrong number of arguments given. Usage:");
@@ -62,7 +58,9 @@ public class App
     		map.export(map_filename);
     		
     		System.out.println("Successfully finished execution.");
-    		
+    		test_stuff.add(DD + "-" + MM + "-" + YYYY);
+    		test_stuff.add(""+readings.size());
+    		test_stuff.add(""+flightpath.size());
     		
     	}
     	

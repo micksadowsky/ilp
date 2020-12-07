@@ -37,7 +37,7 @@ public class ColorSymbol {
 				case BLACK:
 					return "cross";
 				case GREY:
-					return "none";
+					return null;
 	            default:
 	                throw new IllegalArgumentException("Must be one of specified colours but was: " + this.toString());
 			}
@@ -81,10 +81,12 @@ public class ColorSymbol {
 	 * @return one of available colour enums
 	 */
 	private static Color mapReading(int reading) {
-		if (reading < -1 || reading >= 256) {
+		if (reading < -2 || reading >= 256) {
 			throw new IllegalArgumentException("Reading must be between 0 and 255 or -1 but was: " + reading);
 		} else {
-			if (reading < 0) {
+			if (reading == -2) {
+				return Color.GREY;
+			} else if (reading == -1) {
 				return Color.BLACK;
 			} else if (reading < 32) {
 				return Color.GREEN;
