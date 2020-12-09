@@ -25,7 +25,7 @@ public class Test {
 						formatted_month = ""+month;
 					}
 					String formatted_year = ""+year;
-					String[] app_args = {formatted_day, formatted_month, formatted_year, "55.9450", "-3.1900", "22", "80"};
+					String[] app_args = {formatted_day, formatted_month, formatted_year, "55.944425", "-3.188396", "22", "80"};
 					var tmp_app = new App();
 					tmp_app.main(app_args);
 					var result = tmp_app.test_stuff;
@@ -36,7 +36,7 @@ public class Test {
 
 	
 		try {
-			BufferedWriter writer = new BufferedWriter(new FileWriter("log.txt"));
+			BufferedWriter writer = new BufferedWriter(new FileWriter("log-angle-comparison.csv"));
 			writer.write("DATE, readings.size(), flightpath.size()");
 			writer.newLine();
 			for (var result : results) {

@@ -1,5 +1,7 @@
 package uk.ac.ed.inf.aqmaps;
 
+import uk.ac.ed.inf.aqmaps.Reading;
+
 import com.mapbox.geojson.Point;
 import com.mapbox.geojson.Polygon;
 import com.mapbox.geojson.Feature;
@@ -53,10 +55,8 @@ public class Server {
 	}
 	
 
-//	public Point pointFromW3W (String w3w) {
-//		return sensors_w3w.get(w3w);
-//	}
-	
+
+
 
 	public ArrayList<SensorLocation> getSensorsLocations() {
 		// Download data from the server
@@ -92,7 +92,7 @@ public class Server {
 		}
 		return hash_map;
 	}
-	
+
 	
 	public Point w3wtoPoint(String w3w) {
 		var words = w3w.split("\\.");
@@ -103,7 +103,7 @@ public class Server {
 		
 		return Point.fromLngLat(point_long_lat.coordinates.lng, point_long_lat.coordinates.lat);
 	}
-
+	
 	public String makeARequest(String url_params) {
 		
 		// Compose the URL
@@ -137,7 +137,8 @@ public class Server {
 		} else {
 			return response.body();			
 			}
-		}
+	}
+
 	
 	public ArrayList<org.locationtech.jts.geom.Polygon> getJTSNoFlyZones(){
 		// get Mapbox style no-fly-zones
@@ -176,21 +177,12 @@ public class Server {
 	}
 	
 	public FeatureCollection getNoFlyZones() {
-		
 		// Download the file
 		var url_params = "/buildings/no-fly-zones.geojson";
 		var jsonString = makeARequest(url_params);
 		// Convert to a feature collection and return
 		return FeatureCollection.fromJson(jsonString);
-	}
-	
-	public static void main(String[] args) {
-		// initialise for testing
-		String[] d = {"01", "01", "2020"};
-		var srv = new Server(80, d); 
-		
-		
-	}
+	}	
 }
 
 
