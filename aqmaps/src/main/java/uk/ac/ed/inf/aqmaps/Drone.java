@@ -38,10 +38,10 @@ public class Drone {
 			var sensor_to_read = path_step.sensor_to_read;
 //			System.out.println("sensor_to_read = " + sensor_to_read);
 			if (sensor_to_read != null && sensor_to_read != "null" && sensor_to_read != "") {
-				System.out.println("Attempting to read from sensor " + sensor_to_read);
+//				System.out.println("Attempting to read from sensor " + sensor_to_read);
 				if (inRangeOf(moved_loc, sensors_hash.get(sensor_to_read))){
 					readings.add(read(sensor_to_read));
-					System.out.println("Sensor in range");
+//					System.out.println("Sensor in range");
 				}
 			}
 			var curr_log = new LogEntry(i+1, curr_loc, moved_loc, path_step.angle, sensor_to_read);
@@ -70,7 +70,7 @@ public class Drone {
 			for (var l : log) {
 				var str = l.getNo() + "," + l.getLoc_before().longitude() + "," + l.getLoc_before().latitude() + ","
 						+ l.getAngle() + "," + l.getLoc_after().longitude() + "," + l.getLoc_after().latitude() + ","+l.getSensor();
-				System.out.println(str);
+//				System.out.println(str);
 				writer.write(str);
 				writer.newLine();
 			}

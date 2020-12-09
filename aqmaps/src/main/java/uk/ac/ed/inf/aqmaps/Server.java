@@ -171,7 +171,7 @@ public class Server {
 			// create a JTS polygon and add to list
 			var jts_polygon = gf.createPolygon(jts_coordinate_sequence);
 			jts_polygons_list.add(jts_polygon);
-			System.out.println(jts_polygon);
+//			System.out.println(jts_polygon);
 		}
 		return jts_polygons_list;
 	}

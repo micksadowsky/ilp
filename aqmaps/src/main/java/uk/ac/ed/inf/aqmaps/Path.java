@@ -6,6 +6,7 @@ import java.util.Random;
 
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.Polygon;
 
 import com.mapbox.geojson.Point;
@@ -29,13 +30,13 @@ public class Path {
 	}
 
 	public ArrayList<PathStep> generatePath() {
-		System.out.println("Generating path");
+//		System.out.println("Generating path");
 		var order = chooseOrder();
-		System.out.println("Order chosen");
-		System.out.println("Finding path");
+//		System.out.println("Order chosen");
+//		System.out.println("Finding path");
 		var full_path = sensorsPath(order);
-		System.out.println("Path found");
-		System.out.println("full_path.size() = " + full_path.size());
+//		System.out.println("Path found");
+//		System.out.println("full_path.size() = " + full_path.size());
 		return full_path;
 	}
 
@@ -96,13 +97,14 @@ public class Path {
 		var max_angle = angle+180;
 		var forbidden_count = 0.;
 		var total_count = 0.;
-		for (var i = min_angle; i<=max_angle; i = i+10) {
+		for (var i = min_angle; i<max_angle; i = i+10) {
 			total_count++;
 			if (forbidden(pt, angle360(i))) {
 				forbidden_count++;
 			}
 		}
 		var ratio = forbidden_count/total_count;
+//		System.out.println("total_count = " + total_count);
 		return ratio;
 	}
 	private Integer chooseAngle(Point curr_point, Point dest_point, Integer last_angle,
@@ -156,7 +158,7 @@ public class Path {
 					break;
 				}
 			} else {
-				System.out.println("smaller angle aldready tried" + smaller_angle);
+//				System.out.println("smaller angle aldready tried" + smaller_angle);
 				if (tried_angles.size() == 36) {
 					break;
 				}
@@ -173,7 +175,7 @@ public class Path {
 					break;
 				}
 			} else {
-				System.out.println("greater angle aldready tried" + greater_angle);
+//				System.out.println("greater angle aldready tried" + greater_angle);
 				if (tried_angles.size() == 36) {
 					break;
 				}
@@ -225,30 +227,38 @@ public class Path {
 			var randomizer = new Random(seed);
 			var random_angle = considered_angles.get(randomizer.nextInt(considered_angles.size()));
 			
-			var smaller_points = 0;
-			var greater_points = 0;
+			var smaller_points_score = 0;
+			var greater_points_score = 0;
+
+			var angle_weight = 1;
+			var distance_weight = 2;
+			var ratio_weight = 2;
+			var notforbidden_weight = 2;
 			
-			if (smaller_angle_comparison < greater_angle_comparison) { smaller_points++;}
-			if (smaller_angle_comparison > greater_angle_comparison) { greater_points++;}
 
-			if (smaller_angle_distance < greater_angle_distance) { smaller_points++;}
-			if (smaller_angle_distance > greater_angle_distance) { greater_points++;}
+			if (smaller_angle_ratio < greater_angle_ratio) { smaller_points_score = smaller_points_score+ratio_weight;}
+			if (smaller_angle_ratio > greater_angle_ratio) { greater_points_score = greater_points_score+ratio_weight;}
+			if (smaller_angle_ratio == greater_angle_ratio | Math.abs(smaller_angle_ratio - greater_angle_ratio)<0.1) {distance_weight++;}
+				
+			if (!next_smaller_forbidden) {smaller_points_score = smaller_points_score+notforbidden_weight;}
+			if (!next_greater_forbidden) {greater_points_score = greater_points_score+notforbidden_weight;}
 			
-			if (smaller_angle_ratio < greater_angle_ratio) { smaller_points++;}
-			if (smaller_angle_ratio > greater_angle_ratio) { greater_points++;}
+			
+			if (smaller_angle_comparison < greater_angle_comparison) { smaller_points_score = smaller_points_score+angle_weight;;}
+			if (smaller_angle_comparison > greater_angle_comparison) { greater_points_score = greater_points_score+angle_weight;}
 
-			if (!next_smaller_forbidden) {smaller_points = smaller_points+2;}
-			if (!next_greater_forbidden) {greater_points = greater_points+2;}
-
-			System.out.println("smaller_points = " + smaller_points);
-			System.out.println("greater_points = " + greater_points);
+			if (smaller_angle_distance < greater_angle_distance) { smaller_points_score = smaller_points_score+distance_weight;}
+			if (smaller_angle_distance > greater_angle_distance) { greater_points_score = greater_points_score+distance_weight;}
+			
+			System.out.println("smaller_points = " + smaller_points_score);
+			System.out.println("greater_points = " + greater_points_score);
 
 			
-			if (smaller_points > greater_points) {
-				System.out.println("Chose smaller_angle with points = " + smaller_points);
+			if (smaller_points_score > greater_points_score) {
+				System.out.println("Chose smaller_angle with points = " + smaller_points_score);
 				return smaller_angle;
 			} else {
-				System.out.println("Chose greater_angle with points = " + greater_points);
+				System.out.println("Chose greater_angle with points = " + greater_points_score);
 				return greater_angle;
 			}
 			
@@ -276,7 +286,7 @@ public class Path {
 			
 			// if only one angle legal, go for it
 		} else if (considered_angles.size() == 1) {
-			System.out.println("Chose one avalaible angle = " + considered_angles.get(0));
+//			System.out.println("Chose one avalaible angle = " + considered_angles.get(0));
 			return considered_angles.get(0);
 			// otherwise, try again
 		} else {
@@ -353,10 +363,24 @@ public class Path {
 		var ne_pt = new Coordinate(-3.184319, 55.946233);
 		Coordinate[] campus_coordinate_sequence = { nw_pt, sw_pt, se_pt, ne_pt, nw_pt };
 		var jts_campus_coordinate_sequence = csf.create(campus_coordinate_sequence);
-		var campus_border = gf.createLineString(jts_campus_coordinate_sequence);
 
+		// arbitrary larger polygon
+		var nw_pol = new Coordinate(nw_pt.x-(2*move_length), nw_pt.y+(2*move_length));
+		var sw_pol = new Coordinate(sw_pt.x-(2*move_length), sw_pt.y-(2*move_length));
+		var se_pol = new Coordinate(se_pt.x+(2*move_length), se_pt.y-(2*move_length));
+		var ne_pol = new Coordinate(ne_pt.x+(2*move_length), ne_pt.y+(2*move_length));
+		Coordinate[] arbitrary_polygon_coordinate_sequence = { nw_pol, sw_pol, se_pol, ne_pol, nw_pol };
+		var jts_arbitrary_polygon_coordinate_sequence = csf.create(arbitrary_polygon_coordinate_sequence);
+		
+		var campus_border = gf.createLinearRing(jts_campus_coordinate_sequence);
+		var polygon_shell = gf.createLinearRing(jts_arbitrary_polygon_coordinate_sequence);
+
+		LinearRing[] holes = {campus_border};
+		
+		var borderPolygon = gf.createPolygon(polygon_shell, holes);
+		
 		// check for intersection with the confinement area
-		if (move_line.intersects(campus_border)) {
+		if (move_line.intersects(borderPolygon)) {
 			return true;
 		}
 
@@ -430,10 +454,10 @@ public class Path {
 		}
 
 		// Print out the result
-		System.out.println("Chosen order: ");
+//		System.out.println("Chosen order: ");
 		for (var i = 0; i < ordered_points.size(); i++) {
-			System.out.println(i + 1 + " (" + ordered_points.get(i).location + ", "
-					+ ordered_points.get(i).point.longitude() + ", " + ordered_points.get(i).point.latitude() + ")");
+//			System.out.println(i + 1 + " (" + ordered_points.get(i).location + ", "
+//					+ ordered_points.get(i).point.longitude() + ", " + ordered_points.get(i).point.latitude() + ")");
 		}
 
 		return ordered_points;
