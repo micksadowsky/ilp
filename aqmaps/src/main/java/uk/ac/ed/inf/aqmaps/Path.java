@@ -193,12 +193,9 @@ public class Path {
 		if (considered_angles.size() == 2) {
 			// if two angles possible, decide based on multiple factors
 			return angleBasedOnPoints(decreased_angle, increased_angle, curr_point, dest_point);
-		} else if (considered_angles.size() == 1){
+		} else {
 			// if only one angle found, return it
 			return considered_angles.get(0);
-		} else {
-			// if no angle found, keep looking
-			return nextBestAngle(curr_point, dest_point, closest_angle, tried_angles);
 		}
 	}
 
