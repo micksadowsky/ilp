@@ -2,53 +2,73 @@ package uk.ac.ed.inf.aqmaps;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Random;
 
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
-import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.Polygon;
 
 import com.mapbox.geojson.Point;
 
+/**
+ * It is responsible for determining the path, i.e. instructions on how to fly and when to take readings. 
+ * 
+ * @author Michal Sadowski
+ *
+ */
 public class Path {
 
 	ArrayList<SensorLocation> sensors;
 	Point init_loc;
-	static ArrayList<Polygon> no_fly_zones;
+	ArrayList<Polygon> no_fly_zones;
+	
 	final static Double move_length = 0.0003;
 	final static Double sensor_range = 0.0002;
 	final static Double return_range = 0.0003;
-	Integer move_counter = 0;
-	long seed;
+	int move_counter = 0;
 
-	public Path(ArrayList<SensorLocation> sensors, Point init_loc, ArrayList<Polygon> no_fly_zones, long seed) {
+	/**
+	 * @param sensors an unordered list of sensors to consider
+	 * @param init_loc start and end location
+	 * @param no_fly_zones areas to avoid in JTS type
+	 */
+	public Path(ArrayList<SensorLocation> sensors, Point init_loc, ArrayList<Polygon> no_fly_zones) {
 		this.sensors = sensors;
 		this.init_loc = init_loc;
-		this.seed = seed;
 		this.no_fly_zones = no_fly_zones;
 	}
 
+	/**
+	 * Generates a path starting at the init_loc of the object, visiting all sensors, and returns close to init_loc
+	 *  
+	 * @return returns the path
+	 */
 	public ArrayList<PathStep> generatePath() {
-//		System.out.println("Generating path");
+		// choose order in which to visit sensors
 		var order = chooseOrder();
-//		System.out.println("Order chosen");
-//		System.out.println("Finding path");
+		// find how to visit the sensors in that order and construct a path
 		var full_path = sensorsPath(order);
-//		System.out.println("Path found");
-//		System.out.println("full_path.size() = " + full_path.size());
+		
 		return full_path;
 	}
 
+	/**
+	 * Calculates a path between sensors in a given order and determines after which move
+	 * the drone should be in range of specific sensors
+	 * 
+	 * @param ordered_sensors an ordered ArrayList of sensors to visit
+	 * @return the path between the specified ordered sensors
+	 */
 	private ArrayList<PathStep> sensorsPath(ArrayList<SensorLocation> ordered_sensors) {
+		// an ArrayList of steps
 		var full_path = new ArrayList<PathStep>();
-		var init_as_sensor = new SensorLocation("", init_loc);
+		// convert the initial location to the type required by twoPointsPath
+		var init_as_sensor = new SensorLocation("null", init_loc);
+		// set the starting point to initial location
 		var curr_loc = init_as_sensor;
-//		ArrayList<PathStep> curr_path;
 
-		// Find paths for sensors
+		// Find paths between the starting point and the first sensor, then other sensors
 		for (var sen : ordered_sensors) {
-			System.out.println("Finding path to sensor = " + sen.location);
+//			System.out.println("Finding path to sensor = " + sen.location);
 			var curr_path = twoPointsPath(curr_loc, sen, sensor_range);
 			full_path.addAll(curr_path);
 			curr_loc = new SensorLocation("", moveAlongPath(curr_loc.point, curr_path));
@@ -61,239 +81,233 @@ public class Path {
 		return full_path;
 	}
 
+	/**
+	 * Calculates the steps (angles at which to move) to get from sensor s1 
+	 * to a location at maximum distance of proximity to s2. Each step determines
+	 * whether to take a reading after a move.
+	 * 
+	 * @param s1 sensor to start the path at
+	 * @param s2 sensor to finish the path at
+	 * @param proximity the maximum distance from the destination point
+	 * @return returns a list of steps
+	 */
 	private ArrayList<PathStep> twoPointsPath(SensorLocation s1, SensorLocation s2, Double proximity) {
+		// initiate a list of steps
 		var path = new ArrayList<PathStep>();
 
+		// make a copy of the sensor locations
 		var curr_point = Point.fromLngLat(s1.point.longitude(), s1.point.latitude());
 		var dest_point = Point.fromLngLat(s2.point.longitude(), s2.point.latitude());
-		;
 		int move_angle;
 
-		var c = 0;
+		// limit the calculations to 150 moves
 		while (move_counter < 150) {
+			// find the direction of the move
 			if (path.size() > 0) {
-				move_angle = chooseAngle(curr_point, dest_point, path.get(path.size() - 1).angle, false);
+				move_angle = chooseAngle(curr_point, dest_point, path.get(path.size() - 1).angle);
 			} else {
-				move_angle = chooseAngle(curr_point, dest_point, null, false);
+				move_angle = chooseAngle(curr_point, dest_point, null);
 			}
-			System.out.println("\n----MOVING move_angle = " + move_angle + "\n" + "");
 			curr_point = move(curr_point, move_angle);
 			move_counter++;
+			
+			// determine whether to instruct to read a sensor
 			if (distance(dest_point, curr_point) < proximity) {
 				path.add(new PathStep(move_angle, s2.location));
 				break;
 			} else {
 				path.add(new PathStep(move_angle));
 			}
-			System.out.println(move_counter);
-			c++;
 		}
 		return path;
 	}
 
-
-	private Double ratioOfForbidden(Point pt, Integer angle) {
-		var min_angle = angle-180;
-		var max_angle = angle+180;
-		var forbidden_count = 0.;
-		var total_count = 0.;
-		for (var i = min_angle; i<max_angle; i = i+10) {
-			total_count++;
-			if (forbidden(pt, angle360(i))) {
-				forbidden_count++;
-			}
-		}
-		var ratio = forbidden_count/total_count;
-//		System.out.println("total_count = " + total_count);
-		return ratio;
-	}
-	private Integer chooseAngle(Point curr_point, Point dest_point, Integer last_angle,
-			boolean check_for_stalls) {
+	/**
+	 * Choose angle to indicate best direction to move in to reach destination
+	 * 
+	 * @param curr_point the current location of the drone
+	 * @param dest_point the destination point
+	 * @param last_angle the angle, which got us to curr_point
+	 * @return returns an angle, in which the drone should move
+	 */
+	private Integer chooseAngle(Point curr_point, Point dest_point, Integer last_angle) {
+		// Choose an allowed angle to the destination
 		var move_angle = closestAngle(curr_point, dest_point);
-		System.out.println("closest_angle = " + move_angle);
+//		System.out.println("closest_angle = " + move_angle);
+		
+		// prevent from returning to the same point
 		boolean stall;
 		if (last_angle == null) {
 			stall = false;
 		} else {
 			stall = last_angle.equals(angle360(move_angle - 180));
 		}
+		
+		// if next move forbidden or about to get stuck  
 		if (forbidden(curr_point, move_angle) || stall) {
-			System.out.println("Move found to be forbidden, move_angle = " + move_angle);
+//			System.out.println("Move found to be forbidden, move_angle = " + move_angle);
+			
+			// keep track of angles already ruled out 
 			var tried_angles = new ArrayList<Integer>();
+			tried_angles.add(move_angle);
 			if (last_angle != null) {
 				tried_angles.add(angle360(last_angle - 180));
 			}
-			tried_angles.add(angle360(move_angle));
-			move_angle = nextBestAngle(curr_point, dest_point, move_angle, tried_angles, check_for_stalls);
+			
+			// find another allowed angle switching to more advanced decision making
+			move_angle = nextBestAngle(curr_point, dest_point, move_angle, tried_angles);
 		}
+		
 		return move_angle;
 	}
 
 	/**
-	 * Choose angle between two points 
+	 * Determine next available point. Keeps increasing/decreasing the angle until not forbidden.
+	 * Then returns better one.
 	 * 
-	 * @param curr_point
-	 * @param dest_point
-	 * @param closest_angle
-	 * @param angles_tried
-	 * @param check_for_stalls
-	 * @return
+	 * @param curr_point current location
+	 * @param dest_point destination location
+	 * @param closest_angle the angle closest to a straight line but resulting in a forbidden move
+	 * @param angles_tried list of already discarded angles
+	 * @return next best angle
 	 */
 	private Integer nextBestAngle(Point curr_point, Point dest_point, Integer closest_angle,
-			ArrayList<Integer> angles_tried, boolean check_for_stalls) {
-		// consider two angles closest to the original
-		var smaller_angle = closest_angle;
-		var greater_angle = closest_angle;
+			ArrayList<Integer> angles_tried) {
+		
+		// keep track of discarded angles
 		var tried_angles = new ArrayList<Integer>(angles_tried);
-		// continue expanding the angles until reaching the ones not yet tried
 		var considered_angles = new ArrayList<Integer>();
-		// find first legal smaller angle
-		while (true) {
-			smaller_angle = angle360(smaller_angle - 10);
-			if (!tried_angles.contains(smaller_angle)) {
-				tried_angles.add(smaller_angle);
-				if (!forbidden(curr_point, smaller_angle)) {
-					System.out.println("Found a legal smaller angle = " + smaller_angle);
-					considered_angles.add(smaller_angle);
-					break;
-				}
-			} else {
-//				System.out.println("smaller angle aldready tried" + smaller_angle);
-				if (tried_angles.size() == 36) {
-					break;
-				}
-			}
+		
+		// find first legal angle by decreasing it
+		var decreased_angle = adjustAngle(closest_angle, -10, curr_point, tried_angles);
+		if (decreased_angle != null) {
+			considered_angles.add(decreased_angle);
 		}
-		// find first legal greater angle
-		while (true) {
-			greater_angle = angle360(greater_angle + 10);
-			if (!tried_angles.contains(greater_angle)) {
-				tried_angles.add(greater_angle);
-				if (!forbidden(curr_point, greater_angle)) {
-					System.out.println("Found a legal greater angle = " + greater_angle);
-					considered_angles.add(greater_angle);
-					break;
-				}
-			} else {
-//				System.out.println("greater angle aldready tried" + greater_angle);
-				if (tried_angles.size() == 36) {
-					break;
-				}
-			}
+		
+		// find first legal angle by increasing it
+		var increased_angle = adjustAngle(closest_angle, 10, curr_point, tried_angles);
+		if (increased_angle != null) {
+			considered_angles.add(increased_angle);
 		}
 
-		// if both work, choose the one resulting closer location to the sensor
 		if (considered_angles.size() == 2) {
-
-			// points after moving at each angle			
-			var smaller_angle_point = move(curr_point, smaller_angle);
-			var greater_angle_point = move(curr_point, greater_angle);
-
-			var closest_angle_for_smaller = closestAngle(smaller_angle_point, dest_point); 
-			var closest_angle_for_greater = closestAngle(greater_angle_point, dest_point); 
-
-			// next default move forbidden
-			var next_smaller_forbidden = forbidden(smaller_angle_point, closest_angle_for_smaller);
-			var next_greater_forbidden = forbidden(greater_angle_point, closest_angle_for_greater);
-			System.out.println("next_smaller_forbidden = "+ next_smaller_forbidden);
-			System.out.println("next_greater_forbidden = "+ next_greater_forbidden);
-
-			
-			// Ratios forbidden/available
-			var smaller_angle_ratio = ratioOfForbidden(smaller_angle_point, closest_angle_for_smaller);
-			var greater_angle_ratio = ratioOfForbidden(greater_angle_point, closest_angle_for_greater);
-			System.out.println("smaller_angle_ratio = "+ smaller_angle_ratio);
-			System.out.println("greater_angle_ratio = "+ greater_angle_ratio);
-			
-			// Comparing angles to the closest one
-			var angle_dest = angle(curr_point, dest_point);
-			var angle_smaller = angle(curr_point, smaller_angle_point);
-			var angle_greater = angle(curr_point, greater_angle_point);
-//			System.out.println("angle_dest = "+ angle_dest);
-//			System.out.println("angle_smaller = "+ angle_smaller);
-//			System.out.println("angle_greater = "+ angle_greater);
-			
-			var smaller_angle_comparison = Math.abs(angle_dest-angle_smaller);
-			System.out.println("smaller_angle_comparison = "+ smaller_angle_comparison);
-			var greater_angle_comparison = Math.abs(angle_greater-angle_dest);
-			System.out.println("greater_angle_comparison = "+ greater_angle_comparison);
-			
-			// distance comparison
-			var smaller_angle_distance = distance(dest_point, move(curr_point, smaller_angle));
-			System.out.println("smaller_angle_distance = "+ smaller_angle_distance);
-			var greater_angle_distance = distance(dest_point, move(curr_point, greater_angle));
-			System.out.println("greater_angle_distance = "+ greater_angle_distance);
-
-			var randomizer = new Random(seed);
-			var random_angle = considered_angles.get(randomizer.nextInt(considered_angles.size()));
-			
-			var smaller_points_score = 0;
-			var greater_points_score = 0;
-
-			var angle_weight = 1;
-			var distance_weight = 2;
-			var ratio_weight = 2;
-			var notforbidden_weight = 2;
-			
-
-			if (smaller_angle_ratio < greater_angle_ratio) { smaller_points_score = smaller_points_score+ratio_weight;}
-			if (smaller_angle_ratio > greater_angle_ratio) { greater_points_score = greater_points_score+ratio_weight;}
-			if (smaller_angle_ratio == greater_angle_ratio | Math.abs(smaller_angle_ratio - greater_angle_ratio)<0.1) {distance_weight++;}
-				
-			if (!next_smaller_forbidden) {smaller_points_score = smaller_points_score+notforbidden_weight;}
-			if (!next_greater_forbidden) {greater_points_score = greater_points_score+notforbidden_weight;}
-			
-			
-			if (smaller_angle_comparison < greater_angle_comparison) { smaller_points_score = smaller_points_score+angle_weight;;}
-			if (smaller_angle_comparison > greater_angle_comparison) { greater_points_score = greater_points_score+angle_weight;}
-
-			if (smaller_angle_distance < greater_angle_distance) { smaller_points_score = smaller_points_score+distance_weight;}
-			if (smaller_angle_distance > greater_angle_distance) { greater_points_score = greater_points_score+distance_weight;}
-			
-			System.out.println("smaller_points = " + smaller_points_score);
-			System.out.println("greater_points = " + greater_points_score);
-
-			
-			if (smaller_points_score > greater_points_score) {
-				System.out.println("Chose smaller_angle with points = " + smaller_points_score);
-				return smaller_angle;
-			} else {
-				System.out.println("Chose greater_angle with points = " + greater_points_score);
-				return greater_angle;
-			}
-			
-			
-//			if (smaller_angle_comparison < greater_angle_comparison) {
-//				System.out.println("smaller_angle_comparison is smaller");
-//				System.out.println("Chose smaller_angle = " + smaller_angle);
-//				return smaller_angle;
-//			}else if (smaller_angle_comparison > greater_angle_comparison){
-//				System.out.println("greater_angle_comparison is smaller");
-//				System.out.println("Chose greater_angle = " + greater_angle);
-//				return greater_angle;
-//			}else {
-//				System.out.println("greater_angle_ratio are equal");
-//				if (smaller_angle_distance < greater_angle_distance) {
-//					System.out.println("Chose smaller_angle = " + smaller_angle);
-//					return smaller_angle;
-//				} else {
-//					System.out.println("Chose greater_angle = " + greater_angle);
-//					return greater_angle;
-//				}
-//				// lallalalal
-//
-//			}			
-			
-			// if only one angle legal, go for it
-		} else if (considered_angles.size() == 1) {
-//			System.out.println("Chose one avalaible angle = " + considered_angles.get(0));
+			// if two angles possible, decide based on multiple factors
+			return angleBasedOnPoints(decreased_angle, increased_angle, curr_point, dest_point);
+		} else if (considered_angles.size() == 1){
+			// if only one angle found, return it
 			return considered_angles.get(0);
-			// otherwise, try again
 		} else {
-			return nextBestAngle(curr_point, dest_point, closest_angle, tried_angles, check_for_stalls);
+			// if no angle found, keep looking
+			return nextBestAngle(curr_point, dest_point, closest_angle, tried_angles);
 		}
 	}
 
+	/**
+	 * Chooses one of two angles based on four factors:
+	 * 1. Ratio of forbidden moves out of the possible 36 angles 
+	 * at the point resulting in moving in the angle direction
+	 * 2. Whether a move in default direction at such point would be legal
+	 * 3. Distance to the destination at such points
+	 * 4. How close the considered angles are to the closest angle
+	 *  
+	 *  These factors are given weights: 2, 2, 2, 1 respectively. 
+	 *  If the ratio is similar for both angles,the distance weight
+	 *  is increased by one
+	 * 
+	 * @param decreased_angle one angle to consider
+	 * @param increased_angle another angle to consider
+	 * @param curr_point current location
+	 * @param dest_point destination point
+	 * @return the better scoring angle
+	 */
+	private Integer angleBasedOnPoints(int decreased_angle, int increased_angle, Point curr_point, Point dest_point) {
+		// points after moving in direction of considered angle			
+		var decreased_angle_point = move(curr_point, decreased_angle);
+		var increased_angle_point = move(curr_point, increased_angle);
+
+		// default angle to destination from the point after move in direction of angle
+		var closest_angle_for_decreased = closestAngle(decreased_angle_point, dest_point); 
+		var closest_angle_for_increased = closestAngle(increased_angle_point, dest_point); 
+
+		// next default move forbidden
+		var next_move_for_decreased_forbidden = forbidden(decreased_angle_point, closest_angle_for_decreased);
+		var next_move_for_greater_forbidden = forbidden(increased_angle_point, closest_angle_for_increased);
+		
+		// Ratios forbidden/available
+		var angle_ratio_for_decreased = ratioOfForbidden(decreased_angle_point);
+		var angle_ratio_for_increased = ratioOfForbidden(increased_angle_point);
+
+		// Calculate difference between considered angle and closest one
+		var exact_angle_closest = angle(curr_point, dest_point);
+		var exact_angle_decreased = angle(curr_point, decreased_angle_point);
+		var exact_angle_increased = angle(curr_point, increased_angle_point);
+		var decreased_angle_comparison = Math.abs(exact_angle_closest-exact_angle_decreased);
+		var increased_angle_comparison = Math.abs(exact_angle_increased-exact_angle_closest);
+
+		// Calculate distance to dest point from point after move in considered angle 
+		var decreased_angle_distance = distance(dest_point, move(curr_point, decreased_angle));
+		var increased_angle_distance = distance(dest_point, move(curr_point, increased_angle));
+
+		// Score the considered angles
+		var decreased_points_score = 0;
+		var increased_points_score = 0;
+
+		// give weights to each factor
+		var angle_weight = 1;
+		var distance_weight = 2;
+		var ratio_weight = 2;
+		var notforbidden_weight = 2;
+		
+
+		// Assign points for forbidden/possible ratio
+		if (angle_ratio_for_decreased < angle_ratio_for_increased) { decreased_points_score = decreased_points_score+ratio_weight;}
+		if (angle_ratio_for_decreased > angle_ratio_for_increased) { increased_points_score = increased_points_score+ratio_weight;}
+		// If the ratio is similar, increase the weight of the distance factor 
+		if (Math.abs(angle_ratio_for_decreased - angle_ratio_for_increased)<0.1) {distance_weight++;}
+			
+		// Assign points for the next default move being allowed
+		if (!next_move_for_decreased_forbidden) {decreased_points_score = decreased_points_score+notforbidden_weight;}
+		if (!next_move_for_greater_forbidden) {increased_points_score = increased_points_score+notforbidden_weight;}
+		
+		// Assign points for being similar to the closest angle
+		if (decreased_angle_comparison < increased_angle_comparison) { decreased_points_score = decreased_points_score+angle_weight;;}
+		if (decreased_angle_comparison > increased_angle_comparison) { increased_points_score = increased_points_score+angle_weight;}
+
+		// Assign points for resulting in being closer to the goal
+		if (decreased_angle_distance < increased_angle_distance) { decreased_points_score = decreased_points_score+distance_weight;}
+		if (decreased_angle_distance > increased_angle_distance) { increased_points_score = increased_points_score+distance_weight;}
+		
+		// Choose the angle having more points
+		if (decreased_points_score > increased_points_score) {
+			return decreased_angle;
+		} else {
+			return increased_angle;
+		}
+	}
+	
+	/**
+	 * Find first not forbidden angle by adjusting it by the step size
+	 * 
+	 * @param angle the angle to adjust
+	 * @param step either +10 or -10
+	 * @param curr_point current location
+	 * @param tried_angles list of angles already discarded
+	 * @return first allowed angle 
+	 */
+	private Integer adjustAngle(int angle, int step, Point curr_point, ArrayList<Integer> tried_angles) {
+		var adjusted_angle = angle;
+		while(tried_angles.size() < 36) {
+			adjusted_angle = angle360(adjusted_angle + step);
+			if (!tried_angles.contains(adjusted_angle)) {
+				tried_angles.add(adjusted_angle);
+				if (!forbidden(curr_point, adjusted_angle)) {
+					return adjusted_angle;
+				}
+			}
+		}
+		return null;
+	}
+	
 	/**
 	 * Choose a multiple of 10 angle closest to represent the straight line from pt1 to pt2
 	 * 
@@ -302,23 +316,23 @@ public class Path {
 	 * @return Returns the closest angle being multiple of 10
 	 */
 	private Integer closestAngle(Point pt1, Point pt2) {
-		// parse parameters
-		var lat1 = pt1.latitude();
-		var lon1 = pt1.longitude();
-		var lat2 = pt2.latitude();
-		var lon2 = pt2.longitude();
-
-		// calculate the angle from a straight line between points
-		var rad_angle = Math.atan2(lat2 - lat1, lon2 - lon1);
-		var deg_angle = Math.toDegrees(rad_angle);
-		
+		// get the exact angle
+		var angle = angle(pt1, pt2);
 		// round up to an angle that's a multiple of 10
-		var approx_angle = (int) (10 * (Math.round(deg_angle / 10)));
+		var approx_angle = (int) (10 * (Math.round(angle / 10)));
+		// convert positive between 0 and 360
 		approx_angle = angle360(approx_angle);
 
 		return approx_angle;
 	}
 
+	/**
+	 * Compute the exact angle between two points on a map with 0 = west, 90 = north
+	 * 
+	 * @param pt1 first point
+	 * @param pt2 second point
+	 * @return angle in degrees
+	 */
 	private Double angle(Point pt1, Point pt2) {
 		var lat1 = pt1.latitude();
 		var lon1 = pt1.longitude();
@@ -332,6 +346,23 @@ public class Path {
 	}
 	
 	/**
+	 * Calculates the ratio of forbidden moves out of the possible 36 angles: [forbidden moves]/[36 possible directions] 
+	 * 
+	 * @param pt the point at which to calculate the ratio
+	 * @return returns a ratio of forbidden directions to the number of all possible directions
+	 */
+	private Double ratioOfForbidden(Point pt) {
+		var forbidden_count = 0.;
+		for (var angle = 0; angle<360; angle=angle+10) {
+			if (forbidden(pt, angle360(angle))) {
+				forbidden_count++;
+			}
+		}
+		var ratio = forbidden_count/36.;
+		return ratio;
+	}
+	
+	/**
 	 * Checks whether a move would result inside a no fly zone or outside the confinement area, 
 	 * using the JTS library.
 	 * 
@@ -340,50 +371,34 @@ public class Path {
 	 * @return Returns true if move is forbidden, false, otherwise
 	 */
 	private boolean forbidden(Point from, int angle) {
-		// set up points
-		var start_jts_coor = new Coordinate(from.longitude(), from.latitude());
-		var end_pt = move(from, angle);
-		var end_jts_coor = new Coordinate(end_pt.longitude(), end_pt.latitude());
-
 		// initialise JTS stuff
 		var gf = new GeometryFactory();
 		var csf = gf.getCoordinateSequenceFactory();
-
-		// convert to data type required by JTS
-		Coordinate[] coordinate_sequence = { start_jts_coor, end_jts_coor };
-		var jts_coordinate_sequence = csf.create(coordinate_sequence);
-
+		
+		// Represent the MOVE
+		var start_jts_coor = new Coordinate(from.longitude(), from.latitude());
+		var end_pt = move(from, angle);
+		var end_jts_coor = new Coordinate(end_pt.longitude(), end_pt.latitude());
+		Coordinate[] move_coordinate_sequence = { start_jts_coor, end_jts_coor };
+		var jts_move_coordinate_sequence = csf.create(move_coordinate_sequence);
 		// construct a JTS LineString to represent the move
-		var move_line = gf.createLineString(jts_coordinate_sequence);
+		var move_line = gf.createLineString(jts_move_coordinate_sequence);
 
-		// construct the confinement area JTS LineString
+		// Represent the CONFINEMENT AREA
 		var nw_pt = new Coordinate(-3.192473, 55.946233);
 		var sw_pt = new Coordinate(-3.192473, 55.942617);
 		var se_pt = new Coordinate(-3.184319, 55.942617);
 		var ne_pt = new Coordinate(-3.184319, 55.946233);
 		Coordinate[] campus_coordinate_sequence = { nw_pt, sw_pt, se_pt, ne_pt, nw_pt };
 		var jts_campus_coordinate_sequence = csf.create(campus_coordinate_sequence);
-
-		// arbitrary larger polygon
-		var nw_pol = new Coordinate(nw_pt.x-(2*move_length), nw_pt.y+(2*move_length));
-		var sw_pol = new Coordinate(sw_pt.x-(2*move_length), sw_pt.y-(2*move_length));
-		var se_pol = new Coordinate(se_pt.x+(2*move_length), se_pt.y-(2*move_length));
-		var ne_pol = new Coordinate(ne_pt.x+(2*move_length), ne_pt.y+(2*move_length));
-		Coordinate[] arbitrary_polygon_coordinate_sequence = { nw_pol, sw_pol, se_pol, ne_pol, nw_pol };
-		var jts_arbitrary_polygon_coordinate_sequence = csf.create(arbitrary_polygon_coordinate_sequence);
+		// construct the confinement area JTS LinearRing
+		var confinement_area = gf.createLinearRing(jts_campus_coordinate_sequence);
 		
-		var campus_border = gf.createLinearRing(jts_campus_coordinate_sequence);
-		var polygon_shell = gf.createLinearRing(jts_arbitrary_polygon_coordinate_sequence);
-
-		LinearRing[] holes = {campus_border};
-		
-		var borderPolygon = gf.createPolygon(polygon_shell, holes);
-		
+		// CHECKS
 		// check for intersection with the confinement area
-		if (move_line.intersects(borderPolygon)) {
+		if (move_line.intersects(confinement_area)) {
 			return true;
 		}
-
 		// check for intersection with any of the no fly zones
 		for (var nfz : no_fly_zones) {
 			if (move_line.intersects(nfz)) {
@@ -393,7 +408,6 @@ public class Path {
 		return false;
 	}
 	
-
 	/**
 	 * Calculates the location resulting from moving along the specified path
 	 * @param pt starting point
@@ -425,7 +439,6 @@ public class Path {
 		return end_point;
 	}
 
-
 	/**
 	 * Determines the order in which to visit sensors. It selects the closest sensor, then sensor closest to that sensor
 	 * and so on. 
@@ -433,13 +446,13 @@ public class Path {
 	 * @return Returns an ordered ArrayList of SensorLocations
 	 */
 	private ArrayList<SensorLocation> chooseOrder() {
-		// Set up ArrayLists 
+		// set up ArrayLists 
 		var points_given = new ArrayList<SensorLocation>(sensors);
 		var ordered_points = new ArrayList<SensorLocation>();
 		// fix the number of sensors to order
 		var no_points = points_given.size();
 
-		// Choose the first sensor to go to
+		// choose the first sensor to go to
 		var first_sensor = chooseClosest(points_given, init_loc);
 		ordered_points.add(first_sensor);
 		points_given.remove(first_sensor);
@@ -453,12 +466,6 @@ public class Path {
 			current_point = closest;
 		}
 
-		// Print out the result
-//		System.out.println("Chosen order: ");
-		for (var i = 0; i < ordered_points.size(); i++) {
-//			System.out.println(i + 1 + " (" + ordered_points.get(i).location + ", "
-//					+ ordered_points.get(i).point.longitude() + ", " + ordered_points.get(i).point.latitude() + ")");
-		}
 
 		return ordered_points;
 	}
@@ -485,6 +492,15 @@ public class Path {
 		return closest;
 	}
 
+	/**
+	 * Converts angles to a value in [0, 360) degrees
+	 * 
+	 * @param angle is an angle in degrees
+	 * @return returns an angle that is in [0, 360) degrees
+	 */
+	private Integer angle360(Integer angle) {
+		return (((angle % 360) + 360) % 360);
+	}
 	
 	/**
 	 * Calculates distance between two points using the Pythagoras's theorem
@@ -503,45 +519,5 @@ public class Path {
 
 		return distance;
 	}
-
-	/**
-	 * Converts angles to a value in [0, 360) degrees
-	 * 
-	 * @param angle is an angle in degrees
-	 * @return returns an angle that is in [0, 360) degrees
-	 */
-	public static Integer angle360(Integer angle) {
-		return (((angle % 360) + 360) % 360);
-	}
 	
-	public static void main(String[] args) {
-
-	}
-	
-//	public static boolean willStall(Point curr_loc, Point dest_point, Integer chosen_angle) {
-//	System.out.println("Checking if will stall for angle = " + chosen_angle);
-//	var next_chosen_angle = chooseAngle(move(curr_loc, chosen_angle), dest_point, false);
-//	System.out.println("next_chosen_angle = " + next_chosen_angle);
-//	System.out.println("angle360(next_chosen_angle - 180) = " + angle360(next_chosen_angle - 180));
-//
-//	if (chosen_angle.equals(angle360(next_chosen_angle - 180))){
-//		System.out.println("Would STALL for angle = " + chosen_angle);
-//		return true;
-//	} else {
-//		System.out.println("Would NOT STALL for angle = " + chosen_angle);
-//		return false;
-//	}
-//	var second_loc = move(curr_loc, chosen_angle);
-//	var third_loc = move(second_loc, chooseAngle(second_loc, dest_point, false));
-//	if (curr_loc.equals(third_loc)) {
-//		System.out.println("Would STALL for angle = " + chosen_angle);
-//		return true;
-//	} else {
-//		System.out.println("Would NOT STALL for angle = " + chosen_angle);
-//		return false;
-//	}
-//}
-
-
-
 }
