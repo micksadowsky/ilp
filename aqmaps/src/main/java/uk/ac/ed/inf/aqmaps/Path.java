@@ -324,6 +324,16 @@ public class Path {
 	}
 
 	/**
+	 * Converts angles to a value in [0, 360) degrees
+	 * 
+	 * @param angle is an angle in degrees
+	 * @return returns an angle that is in [0, 360) degrees
+	 */
+	private Integer angle360(Integer angle) {
+		return (((angle % 360) + 360) % 360);
+	}
+	
+	/**
 	 * Compute the exact angle between two points on a map with 0 = west, 90 = north
 	 * 
 	 * @param pt1 first point
@@ -489,16 +499,6 @@ public class Path {
 		return closest;
 	}
 
-	/**
-	 * Converts angles to a value in [0, 360) degrees
-	 * 
-	 * @param angle is an angle in degrees
-	 * @return returns an angle that is in [0, 360) degrees
-	 */
-	private Integer angle360(Integer angle) {
-		return (((angle % 360) + 360) % 360);
-	}
-	
 	/**
 	 * Calculates distance between two points using the Pythagoras's theorem
 	 * 
