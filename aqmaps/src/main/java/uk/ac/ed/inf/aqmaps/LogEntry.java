@@ -18,54 +18,23 @@ public class LogEntry {
 		this.sensor = sensor;
 	}
 
-
 	public String getSensor() {
 		return sensor;
 	}
-
-
-	public void setSensor(String sensor) {
-		this.sensor = sensor;
-	}
-
 
 	public Integer getNo() {
 		return no;
 	}
 
-
-	public void setNo(Integer no) {
-		this.no = no;
-	}
-
-
 	public Point getLoc_before() {
 		return loc_before;
 	}
-
-
-	public void setLoc_before(Point loc_before) {
-		this.loc_before = loc_before;
-	}
-
 
 	public Point getLoc_after() {
 		return loc_after;
 	}
 
-
-	public void setLoc_after(Point loc_after) {
-		this.loc_after = loc_after;
-	}
-
-
 	public Integer getAngle() {
 		return angle;
 	}
-
-
-	public void setAngle(Integer angle) {
-		this.angle = angle;
-	}
-
 }
