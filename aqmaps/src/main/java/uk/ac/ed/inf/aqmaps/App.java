@@ -1,7 +1,5 @@
 package uk.ac.ed.inf.aqmaps;
 
-import java.util.ArrayList;
-
 import com.mapbox.geojson.Point;
 
 /**
@@ -12,8 +10,6 @@ import com.mapbox.geojson.Point;
  */
 public class App {
 	public int port = 80;
-	// TODO delete after testing is done
-//	public  ArrayList<String> test_stuff = new ArrayList<String>();
 
 	/**
 	 * @param args should be seven arguments: day, month, year, start longitude,
@@ -68,13 +64,7 @@ public class App {
 			var map = new AQMap(readings, drone_path, sensors_loc_hash);
 			var map_filename = "readings-" + DD + "-" + MM + "-" + YYYY + ".geojson";
 			map.export(map_filename);
-
-			// TODO delete after testing is done
 			System.out.println("Successfully finished execution.");
-//			test_stuff.add(start_lon + ", " + start_lat);
-//			test_stuff.add(DD + "-" + MM + "-" + YYYY);
-//			test_stuff.add("" + readings.size());
-//			test_stuff.add("" + flightpath.size());
 		}
 	}
 }
