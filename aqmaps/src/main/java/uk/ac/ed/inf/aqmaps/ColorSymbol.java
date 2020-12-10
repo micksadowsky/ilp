@@ -124,7 +124,8 @@ public class ColorSymbol {
 	 * Takes the reading and returns a marker symbol
 	 * @param reading integer value 0 &lt x &lt 256
 	 * @return marker symbol appropriate for a reading
-	 */	public static String readingToMarkerSymbol(int reading) {
+	 */	
+	public static String readingToMarkerSymbol(int reading) {
 		return mapReading(reading).getMarkerSymbol();
 	}
 	
