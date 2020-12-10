@@ -1,6 +1,6 @@
 package uk.ac.ed.inf.aqmaps;
 /**
- * This class deals with converting int predictions to colour and their codes
+ * This class deals with converting int predictions to colour, symbols, and their codes
  * 
  * @author Michal Sadowski
  */
@@ -77,7 +77,7 @@ public class ColorSymbol {
 	/**
 	 * Converts a reading integer to an enum based on coursework specification
 	 * 
-	 * @param reading prediction or reading value
+	 * @param reading reading value
 	 * @return one of available colour enums
 	 */
 	private static Color mapReading(int reading) {
