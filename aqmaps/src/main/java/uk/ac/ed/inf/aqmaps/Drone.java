@@ -79,7 +79,7 @@ public class Drone {
 	 * @param sensor_w3w the location/name of the sensor to read from 
 	 * @return returns data read
 	 */
-	public Reading read(String sensor_w3w) {
+	private Reading read(String sensor_w3w) {
 		var reading = srv.getReading(sensor_w3w);
 		return reading;
 	}
@@ -91,7 +91,7 @@ public class Drone {
 	 * @param sensor sensor to consider
 	 * @return Returns true if in range, false otherwise
 	 */
-	public boolean inRangeOf(Point loc, Point sensor) {	
+	private boolean inRangeOf(Point loc, Point sensor) {	
             if (Path.distance(loc, sensor) < Path.sensor_range) {
             	return true;
             } else {
