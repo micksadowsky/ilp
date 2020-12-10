@@ -3,11 +3,11 @@ package uk.ac.ed.inf.aqmaps;
 import com.mapbox.geojson.Point;
 
 public class LogEntry {
-	private Integer no;
-	private Point loc_before;
-	private Point loc_after;
-	private Integer angle;
-	private String sensor;
+	private final Integer no;
+	private final Point loc_before;
+	private final Point loc_after;
+	private final Integer angle;
+	private final String sensor;
 	
 	
 	public LogEntry(Integer no, Point loc_before, Point loc_after, Integer angle, String sensor) {
