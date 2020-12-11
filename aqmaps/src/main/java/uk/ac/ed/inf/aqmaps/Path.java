@@ -17,14 +17,14 @@ import com.mapbox.geojson.Point;
  */
 public class Path {
 
-	ArrayList<SensorLocation> sensors;
-	Point init_loc;
-	ArrayList<Polygon> no_fly_zones;
+	private ArrayList<SensorLocation> sensors;
+	private Point init_loc;
+	private ArrayList<Polygon> no_fly_zones;
 	
-	final static Double move_length = 0.0003;
+	private final static Double move_length = 0.0003;
 	final static Double sensor_range = 0.0002;
-	final static Double return_range = 0.0003;
-	int move_counter = 0;
+	private final static Double return_range = 0.0003;
+	private int move_counter = 0;
 
 	/**
 	 * @param sensors an unordered list of sensors to consider

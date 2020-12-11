@@ -34,6 +34,28 @@ public class Drone {
 	}
 
 	/**
+	 * Saves the log of the flight to a file
+	 * 
+	 * @param outfile name of the file to save to
+	 */
+	public void export(String outfile) {
+		try {
+			BufferedWriter writer = new BufferedWriter(new FileWriter(outfile));
+			for (var l : log) {
+				var str = l.getNo() + "," + l.getLoc_before().longitude() + "," + l.getLoc_before().latitude() + ","
+						+ l.getAngle() + "," + l.getLoc_after().longitude() + "," + l.getLoc_after().latitude() + ","+l.getSensor();
+				writer.write(str);
+				writer.newLine();
+			}
+			writer.close();
+			System.out.println("Successfully saved " + outfile);
+		} catch (IOException e) {
+			System.out.println("An error occurred:");
+			e.printStackTrace();
+		}
+	}
+
+	/**
 	 * Performs a flight by following the specified path and saves readings from the sensors.
 	 * 
 	 * @param path a list of instructions for the flight specifying where to move and when to take readings 
@@ -64,6 +86,24 @@ public class Drone {
 		}
 	}
 
+	/**
+	 * Creates a list of points where the drone has been
+	 * 
+	 * @return list of visited points
+	 */
+	public ArrayList<Point> getPathMap() {
+		var path_map = new ArrayList<Point>();
+		// add initial location
+		path_map.add(log.get(0).getLoc_before());
+
+		// add all other points
+		for (var e : log) {
+			path_map.add(e.getLoc_after());
+		}
+
+		return path_map;
+	}
+	
 	/**
 	 * Getter for readings
 	 * 
@@ -99,43 +139,4 @@ public class Drone {
         }
 	}
 	
-	/**
-	 * Saves the log of the flight to a file
-	 * 
-	 * @param outfile name of the file to save to
-	 */
-	public void export(String outfile) {
-		try {
-			BufferedWriter writer = new BufferedWriter(new FileWriter(outfile));
-			for (var l : log) {
-				var str = l.getNo() + "," + l.getLoc_before().longitude() + "," + l.getLoc_before().latitude() + ","
-						+ l.getAngle() + "," + l.getLoc_after().longitude() + "," + l.getLoc_after().latitude() + ","+l.getSensor();
-				writer.write(str);
-				writer.newLine();
-			}
-			writer.close();
-			System.out.println("Successfully saved " + outfile);
-		} catch (IOException e) {
-			System.out.println("An error occurred:");
-			e.printStackTrace();
-		}
-	}
-
-	/**
-	 * Creates a list of points where the drone has been
-	 * 
-	 * @return list of visited points
-	 */
-	public ArrayList<Point> getPathMap() {
-		var path_map = new ArrayList<Point>();
-		// add initial location
-		path_map.add(log.get(0).getLoc_before());
-
-		// add all other points
-		for (var e : log) {
-			path_map.add(e.getLoc_after());
-		}
-
-		return path_map;
-	}
 }
