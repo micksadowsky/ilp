@@ -1,1 +1,0 @@
-typeSearchIndex = [{"l":"All Classes","url":"allclasses-index.html"},{"p":"uk.ac.ed.inf.heatmap","l":"App"},{"p":"uk.ac.ed.inf.heatmap","l":"ColorSymbol.Color"},{"p":"uk.ac.ed.inf.heatmap","l":"ColorSymbol"},{"p":"uk.ac.ed.inf.heatmap","l":"Heatmap"}]
